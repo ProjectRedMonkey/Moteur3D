@@ -1,11 +1,24 @@
 #include <iostream>
 #include "tgaimage.h"
+#include "model.h"
 
+const int width  = 800;
+const int height = 800;
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
 const TGAColor green   = TGAColor(0, 255,   0,   255);
 const TGAColor blue   = TGAColor(0, 0,   255,   255);
+Model *model = NULL;
 
+/**
+ * Draw a line between two point
+ * @param x0 abscissa of first point
+ * @param y0 ordinate of the first point
+ * @param x1 abscissa of second point
+ * @param y1 ordinate of the second point
+ * @param image to print the line
+ * @param color choosen
+ */
 void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
     bool steep = false;
     if (std::abs(x0 - x1) < std::abs(y0 - y1)) {
@@ -36,18 +49,19 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
     }
 }
 
-    int main(int argc, char** argv) {
-        TGAImage image(100, 100, TGAImage::RGB);
-        line(13, 20, 80, 40, image, white);
-        line(80, 40, 13, 20, image, red);
+    int main() {
+        model = new Model("obj/african_head.obj");
+        TGAImage image(width, height, TGAImage::RGB);
 
-        line(80, 40, 80, 20, image, white);
-        line(80, 40, 13, 40, image, white);
+        //Browse all vertices of the model and print it
+        for (int i = 0; i < model->nverts(); i++) {
+            Vec3f point = model->vert(i);
+            int x0 = (point.x+1.)*width/2.;
+            int y0 = (point.y+1.)*height/2.;
+            image.set(x0, y0, white);
+        }
 
-        line(20, 13, 40, 80, image, green);
-        line(40, 80, 20, 13, image, blue);
-
-        image.flip_vertically(); // i want to have the origin at the left bottom corner of the image
         image.write_tga_file("output.tga");
+        delete model;
         return 0;
     }
