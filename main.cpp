@@ -49,19 +49,37 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
     }
 }
 
-    int main() {
-        model = new Model("obj/african_head.obj");
-        TGAImage image(width, height, TGAImage::RGB);
+/**
+ * Draw a triangle
+ */
+void triangle(int x0, int y0, int x1, int y1, int x2, int y2, TGAImage &image, TGAColor color){
+    line(x0, y0, x1, y1, image, color);
+    line(x0, y0, x2, y2, image, color);
+    line(x1, y1, x2, y2, image, color);
+}
 
-        //Browse all vertices of the model and print it
-        for (int i = 0; i < model->nverts(); i++) {
-            Vec3f point = model->vert(i);
-            int x0 = (point.x+1.)*width/2.;
-            int y0 = (point.y+1.)*height/2.;
-            image.set(x0, y0, white);
-        }
+int main() {
+    model = new Model("obj/african_head.obj");
+    TGAImage image(width, height, TGAImage::RGB);
 
-        image.write_tga_file("output.tga");
-        delete model;
-        return 0;
+    //Browse the faces
+    for (int i=0; i<model->nfaces(); i++) {
+        //For each face, display the triangle
+        std::vector<int> face = model->face(i);
+        Vec3f point1 = model->vert(face[0]);
+        Vec3f point2 = model->vert(face[1]);
+        Vec3f point3 = model->vert(face[2]);
+        int x0 = (point1.x+1.)*width/2.;
+        int y0 = (point1.y+1.)*height/2.;
+        int x1 = (point2.x+1.)*width/2.;
+        int y1 = (point2.y+1.)*height/2.;
+        int x2 = (point3.x+1.)*width/2.;
+        int y2 = (point3.y+1.)*height/2.;
+
+        triangle(x0, y0, x1, y1, x2, y2, image, white);
     }
+
+    image.write_tga_file("output.tga");
+    delete model;
+    return 0;
+}

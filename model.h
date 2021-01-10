@@ -7,11 +7,14 @@
 class Model {
 private:
     std::vector<Vec3f> verts;
+    std::vector<std::vector<int>> faces;
 public:
     Model(const char *filename);
     ~Model();
     int nverts();
     Vec3f vert(int i);
+    int nfaces();
+    std::vector<int> face(int j);
 };
 
 #endif //__MODEL_H__
