@@ -11,7 +11,7 @@ const TGAColor blue   = TGAColor(0, 0,   255,   255);
 Model *model = NULL;
 
 /**
- *  * Draw a line between two point
+ *  * Draw a line between two points
  * @param p0 first vertice
  * @param p1 second vertice
  * @param image to use
@@ -79,7 +79,6 @@ void triangle(Vec2i A, Vec2i B, Vec2i C, TGAImage &image, TGAColor color){
                 pAC.x = A.x + AC.x * l / AC.y;
                 pAC.y = pAB.y;
 
-
                 line(pAB, pAC, image, color);
             }
         }else{
@@ -95,6 +94,7 @@ void triangle(Vec2i A, Vec2i B, Vec2i C, TGAImage &image, TGAColor color){
                 pBC.y = A.y + l;
                 pAC.x = A.x + AC.x * l / AC.y;
                 pAC.y = pBC.y;
+
                 line(pBC, pAC, image, color);
             }
         }else{
@@ -106,6 +106,7 @@ int main() {
     model = new Model("obj/african_head.obj");
     TGAImage image(width, height, TGAImage::RGB);
 
+    Vec3f light_dir(0,0,-1);
     //Browse the faces
     for (int i=0; i<model->nfaces(); i++) {
         //For each face, display the triangle
@@ -120,7 +121,17 @@ int main() {
         int x2 = (point3.x+1.)*width/2.;
         int y2 = (point3.y+1.)*height/2.;
 
-        triangle(Vec2i(x0, y0), Vec2i(x1, y1), Vec2i(x2, y2), image, TGAColor(rand()%255, rand()%255, rand()%255, 255));
+        Vec3f world_coords[3];
+        for (int j=0; j<3; j++) {
+            world_coords[j]  = model->vert(face[j]);
+        }
+        Vec3f n = (world_coords[2]-world_coords[0])^(world_coords[1]-world_coords[0]);
+        n.normalize();
+        float intensity = n*light_dir;
+        if (intensity>0) {
+            triangle(Vec2i(x0, y0), Vec2i(x1, y1), Vec2i(x2, y2), image,
+                     TGAColor(intensity*255, intensity*255, intensity*255, 255));
+        }
     }
 
     image.write_tga_file("output.tga");
