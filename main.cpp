@@ -1,4 +1,7 @@
-#include <iostream>
+#include <vector>
+#include <cmath>
+#include <cstdlib>
+#include <limits>
 #include "tgaimage.h"
 #include "model.h"
 
@@ -47,90 +50,65 @@ void line(Vec2i p0, Vec2i p1, TGAImage &image, TGAColor color) {
     }
 }
 
+
+Vec3f barycentric(Vec3f p1, Vec3f p2, Vec3f p3, Vec3f P) {
+    Vec3f u = cross(Vec3f(p3.x-p1.x, p2.x-p1.x, p1.x-P.x), Vec3f(p3.y-p1.y, p2.y-p1.y,p1.y-P.y));
+    if (std::abs(u[2])<1) return Vec3f(-1,1,1);
+    return Vec3f(1.f-(u.x+u.y)/u.z, u.y/u.z, u.x/u.z);
+}
+
 /**
  * Draw a triangle and fill it
  */
-void triangle(Vec2i A, Vec2i B, Vec2i C, TGAImage &image, TGAColor color){
-        //Sorting points in ascending row order
-        if(A.y > B.y){
-            std::swap(A, B);
+void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color) {
+    Vec2f bboxmin( std::numeric_limits<float>::max(),  std::numeric_limits<float>::max());
+    Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
+    Vec2f clamp(image.get_width()-1, image.get_height()-1);
+    for (int i=0; i<3; i++) {
+        for (int j=0; j<2; j++) {
+            bboxmin[j] = std::max(0.f, std::min(bboxmin[j], pts[i][j]));
+            bboxmax[j] = std::min(clamp[j], std::max(bboxmax[j], pts[i][j]));
         }
-        if(B.y > C.y){
-            std::swap(B, C);
-        }
-        if(A.y > B.y){
-            std::swap(A, B);
-        }
-
-        //Calculation of vectors
-        Vec2i AB = {B.x - A.x, B.y - A.y};
-        Vec2i AC = {C.x - A.x, C.y - A.y};
-        Vec2i BC = {C.x - B.x, C.y - B.y};
-
-        //Construction of the 2 extreme points for each line
-        Vec2i pAB, pAC;
-
-        //Travel of lines A to B only if A and B on different lines
-        if(AB.y > 0){
-            for(int l = 0 ; l <= AB.y - 1 ; l++){
-                //Segments
-                pAB.x = A.x + AB.x * l / AB.y;
-                pAB.y = A.y + l;
-                pAC.x = A.x + AC.x * l / AC.y;
-                pAC.y = pAB.y;
-
-                line(pAB, pAC, image, color);
+    }
+    Vec3f P;
+    for (P.x=bboxmin.x; P.x<=bboxmax.x; P.x++) {
+        for (P.y=bboxmin.y; P.y<=bboxmax.y; P.y++) {
+            Vec3f bc_screen  = barycentric(pts[0], pts[1], pts[2], P);
+            if (bc_screen.x<0 || bc_screen.y<0 || bc_screen.z<0) continue;
+            P.z = 0;
+            for (int i=0; i<3; i++) P.z += pts[i][2]*bc_screen[i];
+            if (zbuffer[int(P.x+P.y*width)]<P.z) {
+                zbuffer[int(P.x+P.y*width)] = P.z;
+                image.set(P.x, P.y, color);
             }
-        }else{
-            line(A, B, image, color);
         }
+    }
+}
 
-        Vec2i pBC;
-
-        //Travel of lines B to C only if B and C on different lines
-        if(BC.y > 0){
-            for(int l = AB.y ; l <= AC.y ; l++){
-                pBC.x = B.x + BC.x * (l - AB.y) / BC.y;
-                pBC.y = A.y + l;
-                pAC.x = A.x + AC.x * l / AC.y;
-                pAC.y = pBC.y;
-
-                line(pBC, pAC, image, color);
-            }
-        }else{
-            line(B, C, image, color);
-        }
+Vec3f world2screen(Vec3f v) {
+    return Vec3f(int((v.x+1.)*width/2.+.5), int((v.y+1.)*height/2.+.5), v.z);
 }
 
 int main() {
     model = new Model("obj/african_head.obj");
     TGAImage image(width, height, TGAImage::RGB);
-
     Vec3f light_dir(0,0,-1);
-    //Browse the faces
-    for (int i=0; i<model->nfaces(); i++) {
-        //For each face, display the triangle
-        std::vector<int> face = model->face(i);
-        Vec3f point1 = model->vert(face[0]);
-        Vec3f point2 = model->vert(face[1]);
-        Vec3f point3 = model->vert(face[2]);
-        int x0 = (point1.x+1.)*width/2.;
-        int y0 = (point1.y+1.)*height/2.;
-        int x1 = (point2.x+1.)*width/2.;
-        int y1 = (point2.y+1.)*height/2.;
-        int x2 = (point3.x+1.)*width/2.;
-        int y2 = (point3.y+1.)*height/2.;
+    float *zbuffer = new float[width*height];
+    for (int i=width*height; i--; zbuffer[i] = -std::numeric_limits<float>::max());
 
+    for (int i=0; i<model->nfaces(); i++) {
+        std::vector<int> face = model->face(i);
+        Vec3f pts[3];
         Vec3f world_coords[3];
         for (int j=0; j<3; j++) {
+            pts[j] = world2screen(model->vert(face[j]));
             world_coords[j]  = model->vert(face[j]);
         }
-        Vec3f n = (world_coords[2]-world_coords[0])^(world_coords[1]-world_coords[0]);
+        Vec3f n = cross((world_coords[2]-world_coords[0]),(world_coords[1]-world_coords[0]));
         n.normalize();
         float intensity = n*light_dir;
         if (intensity>0) {
-            triangle(Vec2i(x0, y0), Vec2i(x1, y1), Vec2i(x2, y2), image,
-                     TGAColor(intensity*255, intensity*255, intensity*255, 255));
+            triangle(pts, zbuffer, image, TGAColor(intensity*255, intensity*255, intensity*255, 255));
         }
     }
 
