@@ -58,9 +58,9 @@ Vec3f barycentric(Vec3f p1, Vec3f p2, Vec3f p3, Vec3f P) {
 }
 
 /**
- * Draw a triangle and fill it
+ * Draw a faces_texture and fill it
  */
-void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color) {
+void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, Vec3f texture[3], float intensity, TGAImage textureImage) {
     Vec2f bboxmin( std::numeric_limits<float>::max(),  std::numeric_limits<float>::max());
     Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
     Vec2f clamp(image.get_width()-1, image.get_height()-1);
@@ -79,7 +79,10 @@ void triangle(Vec3f *pts, float *zbuffer, TGAImage &image, TGAColor color) {
             for (int i=0; i<3; i++) P.z += pts[i][2]*bc_screen[i];
             if (zbuffer[int(P.x+P.y*width)]<P.z) {
                 zbuffer[int(P.x+P.y*width)] = P.z;
-                image.set(P.x, P.y, color);
+                double u = bc_screen[0]*texture[0].x+bc_screen[1]*texture[1].x+bc_screen[2]*texture[2].x;
+                double v = bc_screen[0]*texture[0].y+bc_screen[1]*texture[1].y+bc_screen[2]*texture[2].y;
+                TGAColor color = textureImage.get(u*textureImage.get_width(), v*textureImage.get_height());
+                image.set(P.x, P.y, color*intensity);
             }
         }
     }
@@ -96,22 +99,29 @@ int main() {
     float *zbuffer = new float[width*height];
     for (int i=width*height; i--; zbuffer[i] = -std::numeric_limits<float>::max());
 
+    TGAImage textureImage;
+    textureImage.read_tga_file("obj/african_head_diffuse.tga");
+    textureImage.flip_vertically();
+
     for (int i=0; i<model->nfaces(); i++) {
-        std::vector<int> face = model->face(i);
+        std::vector<int> faces_points = model->faces_point(i);
+        std::vector<int> faces_textures = model->faces_texture(i);
         Vec3f pts[3];
         Vec3f world_coords[3];
+        Vec3f texture[3];
         for (int j=0; j<3; j++) {
-            pts[j] = world2screen(model->vert(face[j]));
-            world_coords[j]  = model->vert(face[j]);
+            pts[j] = world2screen(model->vert(faces_points[j]));
+            world_coords[j]  = model->vert(faces_points[j]);
+            texture[j] = model->texture(faces_textures[j]);
         }
         Vec3f n = cross((world_coords[2]-world_coords[0]),(world_coords[1]-world_coords[0]));
         n.normalize();
         float intensity = n*light_dir;
         if (intensity>0) {
-            triangle(pts, zbuffer, image, TGAColor(intensity*255, intensity*255, intensity*255, 255));
+            triangle(pts, zbuffer, image, texture, intensity, textureImage);
         }
     }
-
+    std::cout << "Bonsoir";
     image.write_tga_file("output.tga");
     delete model;
     return 0;
