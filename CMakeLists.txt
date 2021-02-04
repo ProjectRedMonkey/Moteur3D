@@ -3,4 +3,4 @@ project(Moteur3D)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(Moteur3D main.cpp tgaimage.cpp tgaimage.h model.cpp model.h geometry.h)
+add_executable(Moteur3D main.cpp tgaimage.cpp tgaimage.h model.cpp model.h geometry.h geometry.cpp)

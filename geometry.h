@@ -65,6 +65,7 @@ template<size_t DIM,typename T,typename U> vec<DIM,T> operator*(vec<DIM,T> lhs, 
     return lhs;
 }
 
+
 template<size_t DIM,typename T,typename U> vec<DIM,T> operator/(vec<DIM,T> lhs, const U& rhs) {
     for (size_t i=DIM; i--; lhs[i]/=rhs);
     return lhs;
@@ -216,5 +217,29 @@ typedef vec<2,  int>   Vec2i;
 typedef vec<3,  float> Vec3f;
 typedef vec<3,  int>   Vec3i;
 typedef vec<4,  float> Vec4f;
-typedef mat<4,4,float> Matrix;
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+
+const int DEFAULT_ALLOC=4;
+
+class Matrix {
+    std::vector<std::vector<float> > m;
+    int rows, cols;
+public:
+    Matrix(int r=DEFAULT_ALLOC, int c=DEFAULT_ALLOC);
+    inline int nrows();
+    inline int ncols();
+
+    static Matrix identity(int dimensions);
+    std::vector<float>& operator[](const int i);
+    Matrix operator*(const Matrix& a);
+    Matrix transpose();
+    Matrix inverse();
+
+    friend std::ostream& operator<<(std::ostream& s, Matrix& m);
+};
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+
 #endif //__GEOMETRY_H__
