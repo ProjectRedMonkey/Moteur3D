@@ -12,7 +12,7 @@ const int depth  = 255;
 Model *model = NULL;
 
 Vec3f light_dir(0,0,-1);
-Vec3f eye(1,1,3);
+Vec3f eye(10,0,1);
 Vec3f center(0,0,0);
 
 Vec3i m2v(Matrix m) {
@@ -89,7 +89,7 @@ void triangle(Vec3i *pts, float *zbuffer, TGAImage &image, Vec3f texture[3], flo
                 double u = bc_screen[0]*texture[0].x+bc_screen[1]*texture[1].x+bc_screen[2]*texture[2].x;
                 double v = bc_screen[0]*texture[0].y+bc_screen[1]*texture[1].y+bc_screen[2]*texture[2].y;
                 TGAColor color = textureImage.get(u*textureImage.get_width(), v*textureImage.get_height());
-                image.set(P.x, P.y, TGAColor(color.r*intensity,color.g*intensity,color.b*intensity));
+                image.set(P.x, P.y, TGAColor(color*intensity));
             }
         }
     }
@@ -123,18 +123,32 @@ int main() {
         for (int j=0; j<3; j++) {
             world_coords[j] = model->vert(faces_points[j]);
             screen_coords[j] = m2v(ViewPort*Projection*ModelView*v2m(world_coords[j]));
-            screen_coords_light[j] = m2v(ViewPort*Projection*v2m(world_coords[j]),0);
+            screen_coords_light[j] = m2v(ViewPort*Projection*v2m(world_coords[j]), 0);
             texture[j] = model->texture(faces_textures[j]);
         }
         Vec3f n = cross(screen_coords_light[2]-screen_coords_light[0],screen_coords_light[1]-screen_coords_light[0]);
         n.normalize();
         float intensity = n*light_dir;
-        if (intensity>0) {
-            triangle(screen_coords, zbuffer, image, texture, intensity, textureImage);
-        }
+        triangle(screen_coords, zbuffer, image, texture, intensity, textureImage);
+
     }
-    image.flip_vertically();
+
     image.write_tga_file("output.tga");
     delete model;
+
+    float zmin = +std::numeric_limits<float>::max();
+    float zmax = -std::numeric_limits<float>::max();
+    for (int i=width*height; i--;) {
+        if (zbuffer[i]!=-std::numeric_limits<float>::max())
+            zmin = std::min(zmin, zbuffer[i]);
+        zmax = std::max(zmax, zbuffer[i]);
+    }
+    std::cerr << zmin << " " << zmax << std::endl;
+
+    TGAImage zimg(width, height, TGAImage::GRAYSCALE);
+    for (int i=width*height; i--;) {
+        zimg.set(i%width, i/width, TGAColor(255*((zbuffer[i]-zmin)/(zmax-zmin))));
+    }
+    zimg.write_tga_file("zbuffer.tga");
     return 0;
 }
