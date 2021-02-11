@@ -12,7 +12,8 @@ const int depth  = 255;
 Model *model = NULL;
 
 Vec3f light_dir(0,0,-1);
-Vec3f camera(0,0,3);
+Vec3f eye(1,1,3);
+Vec3f center(0,0,0);
 
 Vec3i m2v(Matrix m) {
     return Vec3i(m[0][0]/m[3][0], m[1][0]/m[3][0], m[2][0]/m[3][0]);
@@ -49,6 +50,20 @@ Vec3f barycentric(Vec3i p1, Vec3i p2, Vec3i p3, Vec3f P) {
     return Vec3f(1.f-(u.x+u.y)/u.z, u.y/u.z, u.x/u.z);
 }
 
+Matrix lookat(Vec3f eye, Vec3f center, Vec3f up) {
+    Vec3f z = (eye-center).normalize();
+    Vec3f x = cross(up,z).normalize();
+    Vec3f y = cross(z,x).normalize();
+    Matrix res = Matrix::identity(4);
+    for (int i=0; i<3; i++) {
+        res[0][i] = x[i];
+        res[1][i] = y[i];
+        res[2][i] = z[i];
+        res[i][3] = -center[i];
+    }
+    return res;
+}
+
 /**
  * Draw a faces_texture and fill it
  */
@@ -83,9 +98,11 @@ void triangle(Vec3i *pts, float *zbuffer, TGAImage &image, Vec3f texture[3], flo
 int main() {
     model = new Model("obj/african_head.obj");
 
+    Matrix ModelView  = lookat(eye, center, Vec3f(0,1,0));
     Matrix Projection = Matrix::identity(4);
     Matrix ViewPort   = viewport(width/8, height/8, width*3/4, height*3/4);
-    Projection[3][2] = -1.f/camera.z;
+    Projection[3][2] = -1.f/(eye-center).norm();
+    Matrix z = (ViewPort*Projection*ModelView);
 
     TGAImage image(width, height, TGAImage::RGB);
 
@@ -105,7 +122,7 @@ int main() {
         Vec3f texture[3];
         for (int j=0; j<3; j++) {
             world_coords[j] = model->vert(faces_points[j]);
-            screen_coords[j] = m2v(ViewPort*Projection*v2m(world_coords[j]));
+            screen_coords[j] = m2v(ViewPort*Projection*ModelView*v2m(world_coords[j]));
             screen_coords_light[j] = m2v(ViewPort*Projection*v2m(world_coords[j]),0);
             texture[j] = model->texture(faces_textures[j]);
         }
