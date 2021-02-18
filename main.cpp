@@ -12,7 +12,7 @@ const int depth  = 255;
 Model *model = NULL;
 
 Vec3f light_dir(0,0,-1);
-Vec3f eye(10,0,1);
+Vec3f       eye(1,1,4);
 Vec3f center(0,0,0);
 
 Vec3i m2v(Matrix m) {
@@ -141,20 +141,5 @@ int main() {
 
     image.write_tga_file("output.tga");
     delete model;
-
-    float zmin = +std::numeric_limits<float>::max();
-    float zmax = -std::numeric_limits<float>::max();
-    for (int i=width*height; i--;) {
-        if (zbuffer[i]!=-std::numeric_limits<float>::max())
-            zmin = std::min(zmin, zbuffer[i]);
-        zmax = std::max(zmax, zbuffer[i]);
-    }
-    std::cerr << zmin << " " << zmax << std::endl;
-
-    TGAImage zimg(width, height, TGAImage::GRAYSCALE);
-    for (int i=width*height; i--;) {
-        zimg.set(i%width, i/width, TGAColor(255*((zbuffer[i]-zmin)/(zmax-zmin))));
-    }
-    zimg.write_tga_file("zbuffer.tga");
     return 0;
 }
