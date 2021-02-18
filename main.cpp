@@ -67,7 +67,7 @@ Matrix lookat(Vec3f eye, Vec3f center, Vec3f up) {
 /**
  * Draw a faces_texture and fill it
  */
-void triangle(Vec3i *pts, float *zbuffer, TGAImage &image, Vec3f texture[3], float intensity, TGAImage textureImage) {
+void triangle(Vec3i *pts, float *zbuffer, TGAImage &image, Vec3f texture[3], Vec3f norms[3], TGAImage textureImage) {
     Vec2f bboxmin( std::numeric_limits<float>::max(),  std::numeric_limits<float>::max());
     Vec2f bboxmax(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
     Vec2f clamp(image.get_width()-1, image.get_height()-1);
@@ -88,7 +88,12 @@ void triangle(Vec3i *pts, float *zbuffer, TGAImage &image, Vec3f texture[3], flo
                 zbuffer[int(P.x+P.y*width)] = P.z;
                 double u = bc_screen[0]*texture[0].x+bc_screen[1]*texture[1].x+bc_screen[2]*texture[2].x;
                 double v = bc_screen[0]*texture[0].y+bc_screen[1]*texture[1].y+bc_screen[2]*texture[2].y;
+                double nx = bc_screen[0]*norms[0].x+bc_screen[1]*norms[1].x+bc_screen[2]*norms[2].x;
+                double ny = bc_screen[0]*norms[0].y+bc_screen[1]*norms[1].y+bc_screen[2]*norms[2].y;
+                double nz = bc_screen[0]*norms[0].z+bc_screen[1]*norms[1].z+bc_screen[2]*norms[2].z;
+                Vec3f n = Vec3f(nx, ny, nz).normalize();
                 TGAColor color = textureImage.get(u*textureImage.get_width(), v*textureImage.get_height());
+                double intensity = -(n*light_dir);
                 image.set(P.x, P.y, TGAColor(color*intensity));
             }
         }
@@ -120,16 +125,17 @@ int main() {
         Vec3f screen_coords_light[3];
         Vec3f world_coords[3];
         Vec3f texture[3];
+        Vec3f norms[3];
         for (int j=0; j<3; j++) {
             world_coords[j] = model->vert(faces_points[j]);
             screen_coords[j] = m2v(ViewPort*Projection*ModelView*v2m(world_coords[j]));
             screen_coords_light[j] = m2v(ViewPort*Projection*v2m(world_coords[j]), 0);
             texture[j] = model->texture(faces_textures[j]);
+            norms[j] = model->norm(i, j);
         }
         Vec3f n = cross(screen_coords_light[2]-screen_coords_light[0],screen_coords_light[1]-screen_coords_light[0]);
         n.normalize();
-        float intensity = n*light_dir;
-        triangle(screen_coords, zbuffer, image, texture, intensity, textureImage);
+        triangle(screen_coords, zbuffer, image, texture, norms, textureImage);
 
     }
 
